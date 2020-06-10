@@ -116,8 +116,8 @@ async def onboardPatient(bed: Tuple[str, str], client: Client):
     bedDetails = (
         f"{patientId}",  # patient ID
         f"Patient_{patientId}",  # name
-        random.randint(15, 99),  # age
         random.choice(['M', 'F', 'O']),  # gender
+        random.randint(15, 99),  # age
         random.randint(85, 95),  # dia_max
         random.randint(135, 145),  # sys_max
         random.randint(85, 93),  # spo2_min

@@ -44,6 +44,13 @@ def get_db():
         db.close()
 
 
+# t1 = threading.Thread(target=start_receiver).start()
+# if __name__ == '__main__':
+#     t2 = threading.Thread(target=start_api).start()
+#     # Process(target=start_receiver).start()
+#     # Process(target=start_api).start()
+
+
 # @app.post("/patient/create", response_model=schemas.Patient, description="Create a new patient")
 # def create_patient(patient: schemas.Patient, db: Session = Depends(get_db)):
 #     db_user = crud.get_patient_by_id(db, id=patient.patient_id)
@@ -89,7 +96,7 @@ def generate_sample_data():
 async def subscribe_realtime(bed_id: int, ws: WebSocket):
     async def ws_send(data):
         await ws.send_json(data)
-    
+
     # simulate an endless series of messages from the mqtt topic
     while True:
         rtd = response.MedicDataRealtime()
@@ -109,7 +116,6 @@ async def subscribe_realtime(bed_id: int, ws: WebSocket):
         await ws_send(rtd.__dict__)
         await asyncio.sleep(0.5)
 
-    
 
 @app.websocket("/beds/{bed_id}/realtime")
 async def websocket_endpoint(websocket: WebSocket, bed_id: int):

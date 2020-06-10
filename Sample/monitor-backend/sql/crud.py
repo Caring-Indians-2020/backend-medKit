@@ -18,7 +18,7 @@ def is_patient_registered(db: Session, patient_id):
     return True
 
 
-def update_patient_details(db: Session, ward_number, bed_number, record_type, record_parameter):
+def update_patient_details(db: Session, ward_number, bed_number, record_type, record_value):
     patient_bed = db.query(BedDetails).filter(
         and_(BedDetails.bed_no == bed_number, BedDetails.ward_no == ward_number)).first()
     patient_id = patient_bed["current_patient_id"]
@@ -26,17 +26,17 @@ def update_patient_details(db: Session, ward_number, bed_number, record_type, re
     patient_details: MedicalDetails = db.query(MedicalDetails).filter(MedicalDetails.patient_id == patient_id).first()
 
     if record_type == MedicalRecordType.SPO2.value:
-        patient_details.spo2_current = record_parameter
-        patient_details.spo2_avg = record_parameter
+        patient_details.spo2_current = record_value
+        patient_details.spo2_avg = record_value
     if record_type == MedicalRecordType.DIASTOLIC_BP.value:
-        patient_details.bp_diastolic_avg = record_parameter
-        patient_details.bp_diastolic_current = record_parameter
+        patient_details.bp_diastolic_avg = record_value
+        patient_details.bp_diastolic_current = record_value
     if record_type == MedicalRecordType.SYSTOLIC_BP.value:
-        patient_details.bp_systolic_current = record_parameter
-        patient_details.bp_systolic_avg = record_parameter
+        patient_details.bp_systolic_current = record_value
+        patient_details.bp_systolic_avg = record_value
     if record_type == MedicalRecordType.HEART_RATE.value:
-        patient_details.bpm_current = record_parameter
-        patient_details.bpm_avg = record_parameter
+        patient_details.bpm_current = record_value
+        patient_details.bpm_avg = record_value
     db.commit()
     db.refresh(patient_details)
     return patient_details
@@ -72,6 +72,7 @@ def delete_patient_by_id(db: Session, id: str):
 
 # Add or replace patient
 def save_or_update_patient(db: Session, patient: Patient):
+    res = db.query(Patient).filter(Patient.patient_id == patient.patient_id).first()
     if db.query(Patient).filter(Patient.patient_id == patient.patient_id).first() is None:
         db.add(patient)
         db.commit()
@@ -89,3 +90,25 @@ def update_or_add_bed_details(session: Session, bed_details: BedDetails):
         details.current_patient_id = bed_details.current_patient_id
         details.ip_address = bed_details.ip_address
         session.commit()
+
+
+# Sort by id to get the latest
+def get_patient_details(session, ward_number, bed_number):
+    patient_bed: BedDetails = session.query(BedDetails).filter(
+        and_(BedDetails.bed_no == bed_number, BedDetails.ward_no == ward_number)).first()
+    patient_id = patient_bed.current_patient_id
+
+    patient_details: MedicalDetails = session.query(MedicalDetails).filter(
+        MedicalDetails.patient_id == patient_id).first()
+    if patient_details is None:
+        return MedicalDetails(bed_id=patient_bed.bed_id, patient_id=patient_id, bed_no=patient_bed.bed_no)
+    print(patient_details.bpm_current)
+    return patient_details
+
+
+def update_given_patient_details(session: Session, patient_details: MedicalDetails):
+    print(patient_details.bp_systolic_avg)
+    rr = session.merge(patient_details)
+    session.commit()
+    # print(rr)
+    return rr
