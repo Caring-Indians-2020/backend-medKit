@@ -7,7 +7,6 @@ class BedResponse:
     name: str
     age: int
     sex: str
-    floorNumber: str
     bedNo: str
     ipAddress: str
     wardNo: str
@@ -18,8 +17,6 @@ class BedResponse:
     spO2Minima: float
     systolicBPMaxima: float
     diastolicBPMaxima: float
-    tempCurrent: float
-    tempAvg: float
     bpmCurrent: float
     bpmAvg: float
     bpSystolicCurrent: float
@@ -42,7 +39,6 @@ class BedResponse:
             self.systolicBPMaxima = patient_details.systolic_bp_maxima
 
         if bed_details is not None:
-            self.floorNumber = bed_details.floor_number
             self.bedNo = str(bed_details.bed_no)
             self.ipAddress = bed_details.ip_address
             self.wardNo = bed_details.ward_no
@@ -50,8 +46,6 @@ class BedResponse:
 
         if medical_details is not None:
             self.time = str(medical_details.time)
-            self.tempCurrent = medical_details.temp_current
-            self.tempAvg = medical_details.temp_avg
             self.bpmCurrent = medical_details.bpm_current
             self.bpmAvg = medical_details.bpm_avg
             self.bpSystolicCurrent = medical_details.bp_systolic_current

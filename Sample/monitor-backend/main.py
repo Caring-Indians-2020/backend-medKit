@@ -1,20 +1,15 @@
-from typing import List
-
-from fastapi import Depends, FastAPI, HTTPException, WebSocket
-from fastapi.responses import Response
-from fastapi.requests import Request
-from fastapi.middleware.cors import CORSMiddleware
-
-from sqlalchemy.orm import Session
-from paho.mqtt.client import Client as mqtt
-
-from .sql import crud, models, schemas, response
-from .sql.database import SessionLocal, engine
-
-
+import asyncio
 import random
 import traceback
-import asyncio
+
+from fastapi import Depends, FastAPI, HTTPException, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.requests import Request
+from fastapi.responses import Response
+from sqlalchemy.orm import Session
+
+from sql import crud, models, response
+from sql.database import SessionLocal, engine
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -72,8 +67,8 @@ def get_bed_details(bed_id: str, db: Session = Depends(get_db)):
 
 
 @app.get("/beds", description="Get All Beds")
-def get_all_bed_details(floor_number: str = None, ward_number: str = None, db: Session = Depends(get_db)):
-    all_beds_details = crud.get_all_bed_details(db, ward_number, floor_number)
+def get_all_bed_details(ward_number: str = None, db: Session = Depends(get_db)):
+    all_beds_details = crud.get_all_bed_details(db, ward_number)
     if all_beds_details is None:
         raise HTTPException(status_code=404, detail="No Beds found")
     details = []
