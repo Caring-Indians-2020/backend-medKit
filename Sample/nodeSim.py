@@ -118,7 +118,7 @@ async def onboardPatient(bed: Tuple[str, str], client: Client):
         f"Patient_{patientId}",  # name
         random.randint(15, 99),  # age
         random.choice(['M', 'F', 'O']),  # gender
-        random.randint(85, 95),  # dia_max
+        random.randint(100, 105),  # sys_min
         random.randint(135, 145),  # sys_max
         random.randint(85, 93),  # spo2_min
         random.randint(50, 60),  # hr_min
@@ -165,7 +165,6 @@ async def startSpO2Producer(bed: Tuple[str, str], client: Client):
         await client.publish(topic1, seed, qos=1)
         await client.publish(topic2, ",".join(ppg), qos=1)
         await asyncio.sleep(DELAY_SPO2)
-
 
 if __name__ == "__main__":
     _beds = [
