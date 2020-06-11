@@ -102,12 +102,11 @@ def get_patient_details(session, ward_number, bed_number):
         MedicalDetails.patient_id == patient_id).first()
     if patient_details is None:
         return MedicalDetails(bed_id=patient_bed.bed_id, patient_id=patient_id, bed_no=patient_bed.bed_no)
-    print(patient_details.bpm_current)
+    # print(patient_details.bpm_current)
     return patient_details
 
 
 def update_given_patient_details(session: Session, patient_details: MedicalDetails):
-    print(patient_details.bp_systolic_avg)
     rr = session.merge(patient_details)
     session.commit()
     # print(rr)

@@ -1,13 +1,15 @@
+import datetime
+import os
+
 import paho.mqtt.client as mqtt
-from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
-from sql import crud, models
+from sqlalchemy.orm import Session
+from sqlalchemy.orm import sessionmaker
+
+from mqtt_receiver.constants import MedicalRecordType
+from sql import crud
 from sql.database import engine, Base
 from sql.models import Patient, MedicalDetails, BedDetails
-from mqtt_receiver.constants import MedicalRecordType
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import os
 
 
 class MqttReceiver:
@@ -61,8 +63,9 @@ class MqttReceiver:
             if bed_ward_key in self.cached_patient_data:
                 pass
             else:
-                patient_medical_details: MedicalDetails = self.update_patient_medical_records(ward_number, bed_number, parameter, message[0])
-                self.cached_patient_data[bed_ward_key] = patient_medical_details
+                patient_medical_details: MedicalDetails = self.update_patient_medical_records(ward_number, bed_number,
+                                                                                              parameter, message[0])
+                # self.cached_patient_data[bed_ward_key] = patient_medical_details
 
     def add_patient_details(self, message, ward_number, bed_number):
         patient = Patient(patient_id=message[0], name=message[1], sex=message[2], age=int(message[3]),
@@ -84,15 +87,19 @@ class MqttReceiver:
         if record_type == MedicalRecordType.SPO2.value:
             patient_details.spo2_current = record_value
             patient_details.spo2_avg = record_value
+            patient_details.time = datetime.datetime.now()
         if record_type == MedicalRecordType.DIASTOLIC_BP.value:
             patient_details.bp_diastolic_avg = record_value
             patient_details.bp_diastolic_current = record_value
+            patient_details.time = datetime.datetime.now()
         if record_type == MedicalRecordType.SYSTOLIC_BP.value:
             patient_details.bp_systolic_current = record_value
             patient_details.bp_systolic_avg = record_value
+            patient_details.time = datetime.datetime.now()
         if record_type == MedicalRecordType.HEART_RATE.value:
             patient_details.bpm_current = record_value
             patient_details.bpm_avg = record_value
+            patient_details.time = datetime.datetime.now()
 
         details = crud.update_given_patient_details(self.session, patient_details)
         return details
