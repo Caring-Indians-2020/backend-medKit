@@ -59,13 +59,13 @@ class MqttReceiver:
             self.add_patient_details(message, ward_number, bed_number)
 
         else:
-            bed_ward_key = bed_number + ward_number
-            if bed_ward_key in self.cached_patient_data:
-                pass
-            else:
-                patient_medical_details: MedicalDetails = self.update_patient_medical_records(ward_number, bed_number,
+            # bed_ward_key = bed_number + ward_number
+            # if bed_ward_key in self.cached_patient_data:
+            #     pass
+            # else:
+            patient_medical_details: MedicalDetails = self.update_patient_medical_records(ward_number, bed_number,
                                                                                               parameter, message[0])
-                # self.cached_patient_data[bed_ward_key] = patient_medical_details
+            # self.cached_patient_data[bed_ward_key] = patient_medical_details
 
     def add_patient_details(self, message, ward_number, bed_number):
         patient = Patient(patient_id=message[0], name=message[1], sex=message[2], age=int(message[3]),
@@ -83,7 +83,12 @@ class MqttReceiver:
         return patient_medical_details
 
     def update_patient_medical_records(self, ward_number, bed_number, record_type, record_value):
-        patient_details = self.get_or_create_patient_medical_details(ward_number, bed_number)
+        patient_details = None
+        bed_ward_key = bed_number + ward_number
+        if bed_ward_key in self.cached_patient_data:
+            patient_details = self.cached_patient_data[bed_ward_key]
+        else:
+            patient_details = self.get_or_create_patient_medical_details(ward_number, bed_number)
         if record_type == MedicalRecordType.SPO2.value:
             patient_details.spo2_current = record_value
             patient_details.spo2_avg = record_value
@@ -100,6 +105,6 @@ class MqttReceiver:
             patient_details.bpm_current = record_value
             patient_details.bpm_avg = record_value
             patient_details.time = datetime.datetime.now()
-
         details = crud.update_given_patient_details(self.session, patient_details)
+        self.cached_patient_data[bed_ward_key] = details
         return details
