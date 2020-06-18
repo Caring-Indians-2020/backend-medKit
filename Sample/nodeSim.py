@@ -1,31 +1,80 @@
 import asyncio
 import random
+import time
+import traceback
 from contextlib import AsyncExitStack, asynccontextmanager
+from multiprocessing import Process
 from typing import Any, List, Tuple
 
+import requests
+import uvicorn
 from asyncio_mqtt import Client, MqttError
+from fastapi import BackgroundTasks, FastAPI, Form, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.requests import Request
+from fastapi.responses import Response
 
 BROKER_ADDRESS = "127.0.0.1"
+SERVER_PORT = 8082
 
 DELAY_HR = 10
 DELAY_SPO2 = 10
 DELAY_BP = 60
 DELAY_PPG = 10
 
-# client = mqtt.Client("NODE_SIM")
-# client.connect(broker_address, 1883, 60)
-# client.publish("1_2/Details", "123478,Sharma,20,M")
-# client.publish("1_1/Details", "124558,Saksham Sharma,20,M,15")
-# client.publish("1_3/Details", "124558,Saksham Sharma,20,M,15")
-# client.publish("1_1/Temp", "25,26.7")
-# client.publish("1_1/HeartRate", "78.5,58.7")
-# client.publish("1_1/SpO2", "80,78.8")
-# client.publish("1_1/BP", "58,68")
+app = FastAPI()
 
-# client.publish("1_2/Temp", "25,26.7")
-# client.publish("1_2/HeartRate", "78.5,58.7")
-# client.publish("1_2/SpO2", "80,78.8")
-# client.publish("1_2/BP", "58,68")
+
+async def catch_exceptions_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception:
+        traceback.print_exc()
+        return Response("Internal server error", status_code=500)
+
+app.middleware('http')(catch_exceptions_middleware)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+client: Client
+stack: AsyncExitStack
+
+
+@app.post("/")
+async def update_patient(
+    request: Request,
+        pID: str = Form(...),
+        pName: str = Form(...),
+        pGender: str = Form(...),
+        pAge: int = Form(...),
+        pMinHR: int = Form(...),
+        pMaxHR: int = Form(...),
+        pMinspO2: int = Form(...),
+        pMaxSysBP: int = Form(...),
+        pMinSysBP: int = Form(...),
+        pBedNo: str = Form(...),
+        pWardNo: str = Form(...),
+):
+    global client
+    # need to publish a message that patient details have been updated
+    await onboardPatient((pWardNo, pBedNo), client, (
+        pID,
+        pName,
+        pGender,
+        pAge,
+        pMinSysBP,
+        pMaxSysBP,
+        pMinspO2,
+        pMinHR,
+        pMaxHR,
+        f'{request.url.netloc}'
+    ))
 
 
 def getNextRandomInt(old: int, lo: int, hi: int, delta: int):
@@ -49,7 +98,9 @@ async def log_messages(messages, template):
     async for message in messages:
         print(template.format(message.topic, message.payload.decode()))
 
+
 async def cancel_tasks(tasks):
+    print('Cancelling tasks')
     for task in tasks:
         task.cancel()
         try:
@@ -57,7 +108,27 @@ async def cancel_tasks(tasks):
         except asyncio.CancelledError:
             pass
 
-async def startSim(beds: List[Tuple[str, str]]):
+
+@app.get("/startup")
+async def scheduleSimStart(background_tasks: BackgroundTasks):
+    background_tasks.add_task(startSim)
+
+
+@app.on_event("shutdown")
+async def shutdownSim():
+    global stack
+    print('Shutting down...')
+    await stack.aclose()
+
+
+async def startSim():
+    global client, stack
+    beds = [
+        ("W1", "1"),
+        ("W1", "2"),
+        ("W1", "3"),
+        ("W1", "4"),
+    ]
     async with AsyncExitStack() as stack:
         # Connect to the MQTT broker
         client = Client(BROKER_ADDRESS)
@@ -95,36 +166,37 @@ async def startSim(beds: List[Tuple[str, str]]):
 
         # Messages that doesn't match a filter will get logged here
         messages = await stack.enter_async_context(client.unfiltered_messages())
-        task = asyncio.create_task(log_messages(messages, f'Other -- [topic="{{}}"] {{}}'))
+        task = asyncio.create_task(log_messages(
+            messages, f'Other -- [topic="{{}}"] {{}}'))
         tasks.add(task)
 
-        await client.subscribe('#') # subscribe to all messages
+        await client.subscribe('#')  # subscribe to all messages
 
         for bed in beds:
             tasks.add(asyncio.create_task(onboardPatient(bed, client)))
             tasks.add(asyncio.create_task(startHRProducer(bed, client)))
             tasks.add(asyncio.create_task(startBPProducer(bed, client)))
             tasks.add(asyncio.create_task(startSpO2Producer(bed, client)))
-        
         await asyncio.gather(*tasks)
 
 
-async def onboardPatient(bed: Tuple[str, str], client: Client):
+async def onboardPatient(bed: Tuple[str, str], client: Client, bedDetails=None):
     wardNo, bedNo = bed
     topic = f'{wardNo}/{bedNo}/patientDetails'
     patientId = int(bedNo) * 1000
-    bedDetails = (
-        f"{patientId}",  # patient ID
-        f"Patient_{patientId}",  # name
-        random.choice(['M', 'F', 'O']),  # gender
-        random.randint(15, 99),  # age
-        random.randint(100, 105),  # sys_min
-        random.randint(135, 145),  # sys_max
-        random.randint(85, 93),  # spo2_min
-        random.randint(50, 60),  # hr_min
-        random.randint(130, 140),  # hr_max
-        "127.0.0.1",  # ip_addr
-    )
+    if bedDetails is None:
+        bedDetails = (
+            f"{patientId}",  # patient ID
+            f"Patient_{patientId}",  # name
+            random.choice(['M', 'F', 'O']),  # gender
+            random.randint(15, 99),  # age
+            random.randint(100, 105),  # sys_min
+            random.randint(135, 145),  # sys_max
+            random.randint(85, 93),  # spo2_min
+            random.randint(50, 60),  # hr_min
+            random.randint(130, 140),  # hr_max
+            f"127.0.0.1:{SERVER_PORT}",  # ip_addr
+        )
     await client.publish(topic, ",".join(map(str, bedDetails)), qos=1)
 
 
@@ -166,11 +238,15 @@ async def startSpO2Producer(bed: Tuple[str, str], client: Client):
         await client.publish(topic2, ",".join(ppg), qos=1)
         await asyncio.sleep(DELAY_SPO2)
 
+
+def trigger_startup():
+    time.sleep(2)
+    url = f'http://127.0.0.1:{SERVER_PORT}/startup'
+    print('Invoking url...')
+    print(url)
+    requests.get(url)
+
+
 if __name__ == "__main__":
-    _beds = [
-        ("W1", "1"),
-        ("W1", "2"),
-        ("W1", "3"),
-        ("W1", "4"),
-    ]
-    asyncio.run(startSim(_beds))
+    Process(target=trigger_startup).start()
+    uvicorn.run("nodeSim:app", port=SERVER_PORT)

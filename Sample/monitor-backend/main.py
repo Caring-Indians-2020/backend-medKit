@@ -10,10 +10,13 @@ from sqlalchemy.orm import Session
 
 from sql import crud, models, response
 from sql.database import SessionLocal, engine
+from mqtt_receiver.receiver import MqttReceiver
+
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+receiver = None
 
 
 async def catch_exceptions_middleware(request: Request, call_next):
@@ -34,6 +37,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# startup : start mqtt receiver
+@app.on_event("startup")
+def startup_event():
+    global receiver
+    print('Starting mqtt client')
+    receiver = MqttReceiver()
 
 # Dependency
 def get_db():

@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from mqtt_receiver.constants import MedicalRecordType
 from sql import crud
-from sql.database import engine, Base
+from sql.database import SessionLocal
 from sql.models import Patient, MedicalDetails, BedDetails
 
 
@@ -16,12 +16,14 @@ class MqttReceiver:
     def __init__(self):
         self.broker_address = "127.0.0.1"
         self.cached_patient_data = {}
-        SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.dirname(os.path.realpath(__file__))}/../patientInfo.db"
-        self.engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-        # Base = declarative_base()
-        Base.metadata.create_all(bind=engine)
+        # SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.dirname(os.path.realpath(__file__))}/../patientInfo.db"
+        # self.engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={
+        #                             "check_same_thread": False})
+        # # Base = declarative_base()
+        # Base.metadata.create_all(bind=engine)
 
-        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        # SessionLocal = sessionmaker(
+        #     autocommit=False, autoflush=False, bind=engine)
 
         self.session: Session = SessionLocal()
 
@@ -31,12 +33,20 @@ class MqttReceiver:
         self.client.on_message = self.add_data
 
         self.client.connect(self.broker_address)
-        self.client.loop_forever()
+        self.client.loop_start()
         # while True:
         #     self.client.loop()
         #     self.client.on_message = self.add_data
         # with open('hello.txt','w') as f:
         #     pass
+
+    # Dependency
+    def get_db():
+        try:
+            db = SessionLocal()
+            yield db
+        finally:
+            db.close()
 
     def on_connect(self, client, userdata, flags, rc):
         print("Connected with result code " + str(rc))
@@ -55,7 +65,7 @@ class MqttReceiver:
         current_patient_data: MedicalDetails
         message = str(payload.payload.decode("utf-8")).split(",")
         if parameter == "patientDetails":
-            print("patient_details_reached")
+            print("patient_details_reached", message)
             self.add_patient_details(message, ward_number, bed_number)
 
         else:
@@ -64,7 +74,7 @@ class MqttReceiver:
             #     pass
             # else:
             patient_medical_details: MedicalDetails = self.update_patient_medical_records(ward_number, bed_number,
-                                                                                              parameter, message[0])
+                                                                                          parameter, message[0])
             # self.cached_patient_data[bed_ward_key] = patient_medical_details
 
     def add_patient_details(self, message, ward_number, bed_number):
@@ -79,7 +89,8 @@ class MqttReceiver:
         crud.update_or_add_bed_details(self.session, bed_details)
 
     def get_or_create_patient_medical_details(self, ward_number, bed_number):
-        patient_medical_details = crud.get_patient_details(self.session, ward_number, bed_number)
+        patient_medical_details = crud.get_patient_details(
+            self.session, ward_number, bed_number)
         return patient_medical_details
 
     def update_patient_medical_records(self, ward_number, bed_number, record_type, record_value):
@@ -88,7 +99,8 @@ class MqttReceiver:
         if bed_ward_key in self.cached_patient_data:
             patient_details = self.cached_patient_data[bed_ward_key]
         else:
-            patient_details = self.get_or_create_patient_medical_details(ward_number, bed_number)
+            patient_details = self.get_or_create_patient_medical_details(
+                ward_number, bed_number)
         if record_type == MedicalRecordType.SPO2.value:
             patient_details.spo2_current = record_value
             patient_details.spo2_avg = record_value
@@ -105,6 +117,7 @@ class MqttReceiver:
             patient_details.bpm_current = record_value
             patient_details.bpm_avg = record_value
             patient_details.time = datetime.datetime.now()
-        details = crud.update_given_patient_details(self.session, patient_details)
+        details = crud.update_given_patient_details(
+            self.session, patient_details)
         self.cached_patient_data[bed_ward_key] = details
         return details
