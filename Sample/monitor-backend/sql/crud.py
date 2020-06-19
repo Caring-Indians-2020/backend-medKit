@@ -72,12 +72,14 @@ def delete_patient_by_id(db: Session, id: str):
 
 # Add or replace patient
 def save_or_update_patient(db: Session, patient: Patient):
-    res = db.query(Patient).filter(Patient.patient_id == patient.patient_id).first()
-    if db.query(Patient).filter(Patient.patient_id == patient.patient_id).first() is None:
+    res: Patient = db.query(Patient).filter(Patient.patient_id == patient.patient_id).first()
+    if res is None:
         db.add(patient)
         db.commit()
     else:
-        pass
+        patient.patient_id = res.patient_id
+        db.merge(patient)
+        db.commit()
         # Add logic to update patient details
 
 

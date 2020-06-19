@@ -1,6 +1,7 @@
 import asyncio
 import random
 import traceback
+import uvicorn
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -122,7 +123,11 @@ async def subscribe_realtime(bed_id: int, ws: WebSocket):
             random.randrange(1, 100),
             random.randrange(1, 100)
         ]
-        await ws_send(rtd.__dict__)
+        try:
+            await ws_send(rtd.__dict__)
+        except:
+            print(f"ws disconnected for bed id = {bed_id}")
+            return
         await asyncio.sleep(0.5)
 
 
@@ -131,3 +136,7 @@ async def websocket_endpoint(websocket: WebSocket, bed_id: int):
     await websocket.accept()
     print(f"ws connected for bed id = {bed_id}")
     await subscribe_realtime(bed_id, websocket)
+
+
+if __name__ == "__main__":
+    uvicorn.run('main:app', host="0.0.0.0", reload=True)
