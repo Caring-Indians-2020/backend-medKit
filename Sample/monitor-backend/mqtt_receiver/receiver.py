@@ -78,10 +78,16 @@ class MqttReceiver:
             # self.cached_patient_data[bed_ward_key] = patient_medical_details
 
     def add_patient_details(self, message, ward_number, bed_number):
-        patient = Patient(patient_id=message[0], name=message[1], sex=message[2], age=int(message[3]),
-                          heart_rate_minima=int(message[4]),
-                          heart_rate_maxima=int(message[5]), spo2_minima=int(message[6]),
-                          systolic_bp_maxima=int(message[7]), systolic_bp_minima=int(message[8]))
+        patient = Patient(patient_id=message[0],
+                          name=message[1],
+                          sex=message[2],
+                          age=int(message[3]),
+                          systolic_bp_minima=int(message[4]),
+                          systolic_bp_maxima=int(message[5]),
+                          spo2_minima=int(message[6]),
+                          heart_rate_minima=int(message[7]),
+                          heart_rate_maxima=int(message[8]),
+                          )
 
         bed_details = BedDetails(bed_no=bed_number, ward_no=ward_number, current_patient_id=message[0],
                                  ip_address=message[9])

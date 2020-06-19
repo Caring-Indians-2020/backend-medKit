@@ -3,7 +3,6 @@ import random
 import time
 import traceback
 from contextlib import AsyncExitStack, asynccontextmanager
-from multiprocessing import Process
 from typing import Any, List, Tuple
 
 import requests
@@ -76,6 +75,24 @@ async def update_patient(
         f'{request.url.netloc}'
     ))
 
+# @app.get("/startup")
+# async def scheduleSimStart(background_tasks: BackgroundTasks):
+#     background_tasks.add_task(startSim)
+
+
+@app.on_event("startup")
+async def scheduleSimStart():
+    asyncio.ensure_future(startSim())
+
+@app.on_event("shutdown")
+async def shutdownSim():
+    global stack
+    print('Shutting down...')
+    await stack.aclose()
+
+####################
+####  SIM Code  ####
+####################
 
 def getNextRandomInt(old: int, lo: int, hi: int, delta: int):
     ub = min(old + delta, hi)
@@ -107,19 +124,6 @@ async def cancel_tasks(tasks):
             await task
         except asyncio.CancelledError:
             pass
-
-
-@app.get("/startup")
-async def scheduleSimStart(background_tasks: BackgroundTasks):
-    background_tasks.add_task(startSim)
-
-
-@app.on_event("shutdown")
-async def shutdownSim():
-    global stack
-    print('Shutting down...')
-    await stack.aclose()
-
 
 async def startSim():
     global client, stack
@@ -190,7 +194,7 @@ async def onboardPatient(bed: Tuple[str, str], client: Client, bedDetails=None):
             f"Patient_{patientId}",  # name
             random.choice(['M', 'F', 'O']),  # gender
             random.randint(15, 99),  # age
-            random.randint(100, 105),  # sys_min
+            random.randint(88, 92),  # sys_min
             random.randint(135, 145),  # sys_max
             random.randint(85, 93),  # spo2_min
             random.randint(50, 60),  # hr_min
@@ -217,8 +221,8 @@ async def startBPProducer(bed: Tuple[str, str], client: Client):
     sys = 110
     dia = 70
     while True:
-        sys = getNextRandomInt(sys, 100, 200, 5)
-        dia = getNextRandomInt(dia, 30, sys, 5)
+        sys = getNextRandomInt(sys, 80, 200, 5)
+        dia = getNextRandomInt(dia, 50, sys, 5)
         await client.publish(topic1, dia, qos=1)
         await client.publish(topic2, sys, qos=1)
         await asyncio.sleep(DELAY_BP)
@@ -239,14 +243,5 @@ async def startSpO2Producer(bed: Tuple[str, str], client: Client):
         await asyncio.sleep(DELAY_SPO2)
 
 
-def trigger_startup():
-    time.sleep(2)
-    url = f'http://127.0.0.1:{SERVER_PORT}/startup'
-    print('Invoking url...')
-    print(url)
-    requests.get(url)
-
-
 if __name__ == "__main__":
-    Process(target=trigger_startup).start()
-    uvicorn.run("nodeSim:app", port=SERVER_PORT)
+    uvicorn.run("nodeSim:app", port=SERVER_PORT, reload=True)
