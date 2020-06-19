@@ -187,13 +187,18 @@ async def startSim():
 async def onboardPatient(bed: Tuple[str, str], client: Client, bedDetails=None):
     wardNo, bedNo = bed
     topic = f'{wardNo}/{bedNo}/patientDetails'
-    patientId = int(bedNo) * 1000
+    patientId = name = age = gender = ''
+    if random.randint(1, 100) > 5:
+        patientId = f"{int(bedNo) * 1000}"
+        name = f"Patient_{patientId}"
+        gender = random.choice(['M', 'F', 'O'])
+        age = random.randint(15, 99)
     if bedDetails is None:
         bedDetails = (
-            f"{patientId}",  # patient ID
-            f"Patient_{patientId}",  # name
-            random.choice(['M', 'F', 'O']),  # gender
-            random.randint(15, 99),  # age
+            patientId,  # patient ID
+            name,  # name
+            gender,  # gender
+            age,  # age
             random.randint(88, 92),  # sys_min
             random.randint(135, 145),  # sys_max
             random.randint(85, 93),  # spo2_min
