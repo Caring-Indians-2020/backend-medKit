@@ -1,6 +1,6 @@
 import datetime
 import os
-from typing import List
+from typing import List, Dict
 
 import paho.mqtt.client as mqtt
 from sqlalchemy import create_engine
@@ -17,6 +17,8 @@ class MqttReceiver:
     def __init__(self):
         self.broker_address = "127.0.0.1"
         self.cached_patient_data = {}
+        # <bedNo_wardNo, <ws_id, data>>
+        self.cachedData: Dict[str, Dict[str,List[int]]] = {}
 
         self.session: Session = SessionLocal()
 
@@ -55,7 +57,14 @@ class MqttReceiver:
         if parameter == "patientDetails":
             print("patient_details_reached", message)
             self.add_patient_details(message, ward_number, bed_number)
-
+        elif parameter == 'ppg':
+            dataByBed = self.cachedData[f'{bed_number+"_"+ward_number}']
+            if dataByBed is None: 
+                dataByBed = {}
+                self.cachedData[f'{bed_number+"_"+ward_number}'] = dataByBed
+            for wsId in dataByBed:
+                #append to the end of the array
+                dataByBed[wsId].append(message)
         else:
             # bed_ward_key = bed_number + ward_number
             # if bed_ward_key in self.cached_patient_data:

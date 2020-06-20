@@ -127,6 +127,7 @@ async def cancel_tasks(tasks):
 
 async def startSim():
     global client, stack
+    # change entries to modify test
     beds = [
         ("W1", "1"),
         ("W1", "2"),

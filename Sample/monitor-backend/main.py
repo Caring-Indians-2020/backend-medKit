@@ -2,6 +2,7 @@ import asyncio
 import random
 import traceback
 import uvicorn
+import time
 
 from fastapi import Depends, FastAPI, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -106,28 +107,34 @@ def generate_sample_data():
 async def subscribe_realtime(bed_id: int, ws: WebSocket):
     async def ws_send(data):
         await ws.send_json(data)
-
+    wsId = str(time.time)
+    bed = crud.get_bed(bed_id)
     # simulate an endless series of messages from the mqtt topic
     while True:
-        rtd = response.MedicDataRealtime()
-        # sending a list of 10 values
-        rtd.ppg = [
-            random.randrange(1, 100),
-            random.randrange(1, 100),
-            random.randrange(1, 100),
-            random.randrange(1, 100),
-            random.randrange(1, 100),
-            random.randrange(1, 100),
-            random.randrange(1, 100),
-            random.randrange(1, 100),
-            random.randrange(1, 100),
-            random.randrange(1, 100)
-        ]
-        try:
-            await ws_send(rtd.__dict__)
-        except:
-            print(f"ws disconnected for bed id = {bed_id}")
-            return
+        dataByBed = receiver.cachedData[f'{bed.bedNo+"_"+bed.wardNo}']
+        if dataByBed is not None:
+            rtd = response.MedicDataRealtime()
+            if wsId not in dataByBed:
+                dataByBed[wsId] = []
+            rtd.ppg = dataByBed[wsId]
+            receiver.cachedData[f'{bed.bedNo+"_"+bed.wardNo}'][wsId] = None
+            # # sending a list of 10 values
+            #     random.randrange(1, 100),
+            #     random.randrange(1, 100),
+            #     random.randrange(1, 100),
+            #     random.randrange(1, 100),
+            #     random.randrange(1, 100),
+            #     random.randrange(1, 100),
+            #     random.randrange(1, 100),
+            #     random.randrange(1, 100),
+            #     random.randrange(1, 100),
+            #     random.randrange(1, 100)
+            # ]
+            try:
+                await ws_send(rtd.__dict__)
+            except:
+                print(f"ws disconnected for bed id = {bed_id}")
+                return
         await asyncio.sleep(0.5)
 
 
