@@ -129,3 +129,8 @@ def update_given_patient_details(session: Session, patient_details: MedicalDetai
     session.commit()
     # print(rr)
     return rr
+
+
+def get_bed(session:Session, bed_id):
+    details: BedDetails = session.query(BedDetails).filter(BedDetails.bed_id == bed_id).first()
+    return details

@@ -9,7 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
+from fastapi.responses import HTMLResponse
 
+from mqtt_receiver.constants import html
 from sql import crud, models, response
 from sql.database import SessionLocal, engine
 from mqtt_receiver.receiver import MqttReceiver
@@ -108,33 +110,33 @@ async def subscribe_realtime(bed_id: int, ws: WebSocket):
     async def ws_send(data):
         await ws.send_json(data)
     wsId = str(time.time)
-    bed = crud.get_bed(bed_id)
+    db: Session = Depends(get_db)
+    bed:models.BedDetails = crud.get_bed(db, bed_id)
+    global receiver
     # simulate an endless series of messages from the mqtt topic
     while True:
-        dataByBed = receiver.cachedData[f'{bed.bedNo+"_"+bed.wardNo}']
-        if dataByBed is not None:
-            rtd = response.MedicDataRealtime()
-            if wsId not in dataByBed:
-                dataByBed[wsId] = []
-            rtd.ppg = dataByBed[wsId]
-            receiver.cachedData[f'{bed.bedNo+"_"+bed.wardNo}'][wsId] = None
-            # # sending a list of 10 values
-            #     random.randrange(1, 100),
-            #     random.randrange(1, 100),
-            #     random.randrange(1, 100),
-            #     random.randrange(1, 100),
-            #     random.randrange(1, 100),
-            #     random.randrange(1, 100),
-            #     random.randrange(1, 100),
-            #     random.randrange(1, 100),
-            #     random.randrange(1, 100),
-            #     random.randrange(1, 100)
-            # ]
-            try:
-                await ws_send(rtd.__dict__)
-            except:
-                print(f"ws disconnected for bed id = {bed_id}")
-                return
+        rtd = response.MedicDataRealtime()
+        dataByBedPpg = receiver.cached_PPG_data[f'{bed.bedNo+"_"+bed.wardNo}']
+        if dataByBedPpg is not None:
+
+            if wsId not in dataByBedPpg:
+                dataByBedPpg[wsId] = []
+            rtd.ppg = dataByBedPpg[wsId]
+            receiver.cached_PPG_data[f'{bed.bedNo+"_"+bed.wardNo}'][wsId] = None
+
+        dataByBedEcg = receiver.cached_ECG_data[f'{bed.bedNo + "_" + bed.wardNo}']
+        if dataByBedEcg is not None:
+
+            if wsId not in dataByBedEcg:
+                dataByBedEcg[wsId] = []
+            rtd.ppg = dataByBedPpg[wsId]
+            receiver.cached_ECG_data[f'{bed.bedNo + "_" + bed.wardNo}'][wsId] = None
+
+        try:
+            await ws_send(rtd.__dict__)
+        except:
+            print(f"ws disconnected for bed id = {bed_id}")
+            return
         await asyncio.sleep(0.5)
 
 

@@ -11,14 +11,15 @@ from mqtt_receiver.constants import MedicalRecordType
 from sql import crud
 from sql.database import SessionLocal
 from sql.models import Patient, MedicalDetails, BedDetails
-
+from .constants import MedicalRecordType
 
 class MqttReceiver:
     def __init__(self):
         self.broker_address = "127.0.0.1"
         self.cached_patient_data = {}
         # <bedNo_wardNo, <ws_id, data>>
-        self.cachedData: Dict[str, Dict[str,List[int]]] = {}
+        self.cached_PPG_data: Dict[str, Dict[str, List[int]]] = {}
+        self.cached_ECG_data: Dict[str, Dict[str, List[int]]] = {}
 
         self.session: Session = SessionLocal()
 
@@ -57,13 +58,21 @@ class MqttReceiver:
         if parameter == "patientDetails":
             print("patient_details_reached", message)
             self.add_patient_details(message, ward_number, bed_number)
-        elif parameter == 'ppg':
-            dataByBed = self.cachedData[f'{bed_number+"_"+ward_number}']
-            if dataByBed is None: 
-                dataByBed = {}
-                self.cachedData[f'{bed_number+"_"+ward_number}'] = dataByBed
-            for wsId in dataByBed:
+        elif parameter == MedicalRecordType.PPG.value:
+            dataByBedPPg = self.cached_PPG_data[f'{bed_number + "_" + ward_number}']
+            if dataByBedPPg is None:
+                dataByBedPPg = {}
+                self.cached_PPG_data[f'{bed_number + "_" + ward_number}'] = dataByBed
+            for wsId in dataByBedPPg:
                 #append to the end of the array
+                dataByBedPPg[wsId].append(message)
+        elif parameter == MedicalRecordType.ECG.value:
+            dataByBed = self.cached_ECG_data[f'{bed_number + "_" + ward_number}']
+            if dataByBed is None:
+                dataByBed = {}
+                self.cached_ECG_data[f'{bed_number + "_" + ward_number}'] = dataByBed
+            for wsId in dataByBed:
+                # append to the end of the array
                 dataByBed[wsId].append(message)
         else:
             # bed_ward_key = bed_number + ward_number
