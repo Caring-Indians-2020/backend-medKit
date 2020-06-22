@@ -42,6 +42,8 @@ app.add_middleware(
 )
 
 # startup : start mqtt receiver
+
+
 @app.on_event("startup")
 def startup_event():
     global receiver
@@ -49,6 +51,8 @@ def startup_event():
     receiver = MqttReceiver()
 
 # Dependency
+
+
 def get_db():
     try:
         db = SessionLocal()
@@ -106,46 +110,55 @@ def generate_sample_data():
                        'BP': generate_random()}}
 
 
-async def subscribe_realtime(bed_id: int, ws: WebSocket):
+async def subscribe_realtime(bed_id: int, ws: WebSocket, db: Session):
+    global receiver
     async def ws_send(data):
         await ws.send_json(data)
-    wsId = str(time.time)
-    db: Session = Depends(get_db)
-    bed:models.BedDetails = crud.get_bed(db, bed_id)
-    global receiver
+    wsId = str(time.time())
+    bed: models.BedDetails = crud.get_bed(db, bed_id)
+    cacheKey = f'{bed.bed_no}_{bed.ward_no}'
     # simulate an endless series of messages from the mqtt topic
     while True:
         rtd = response.MedicDataRealtime()
-        dataByBedPpg = receiver.cached_PPG_data[f'{bed.bedNo+"_"+bed.wardNo}']
+        dataByBedPpg = receiver.cached_PPG_data.get(cacheKey)
+        dataByBedEcg = receiver.cached_ECG_data.get(cacheKey)
+        print(f'receiver.cached_PPG_data = {receiver.cached_PPG_data}')
+        print(f'receiver.cached_ECG_data = {receiver.cached_ECG_data}')
+
         if dataByBedPpg is not None:
 
             if wsId not in dataByBedPpg:
                 dataByBedPpg[wsId] = []
+            # get cached data
             rtd.ppg = dataByBedPpg[wsId]
-            receiver.cached_PPG_data[f'{bed.bedNo+"_"+bed.wardNo}'][wsId] = None
-
-        dataByBedEcg = receiver.cached_ECG_data[f'{bed.bedNo + "_" + bed.wardNo}']
+            receiver.cached_PPG_data[cacheKey][wsId] = []
         if dataByBedEcg is not None:
 
             if wsId not in dataByBedEcg:
                 dataByBedEcg[wsId] = []
-            rtd.ppg = dataByBedPpg[wsId]
-            receiver.cached_ECG_data[f'{bed.bedNo + "_" + bed.wardNo}'][wsId] = None
+            rtd.ecg = dataByBedPpg[wsId]
+            receiver.cached_ECG_data[cacheKey][wsId] = []
 
         try:
             await ws_send(rtd.__dict__)
         except:
             print(f"ws disconnected for bed id = {bed_id}")
-            return
+            break
         await asyncio.sleep(0.5)
+    if receiver.cached_ECG_data.get(cacheKey) is not None and wsId in receiver.cached_ECG_data.get(cacheKey):
+        print(f'clearing ECG cache for {wsId}')
+        del receiver.cached_ECG_data.get(cacheKey)[wsId]
+    if receiver.cached_ECG_data.get(cacheKey) is not None and wsId in receiver.cached_ECG_data.get(cacheKey):
+        print(f'clearing PPG cache for {wsId}')
+        del receiver.cached_ECG_data.get(cacheKey)[wsId]
 
 
 @app.websocket("/beds/{bed_id}/realtime")
-async def websocket_endpoint(websocket: WebSocket, bed_id: int):
+async def websocket_endpoint(websocket: WebSocket, bed_id: int, db: Session = Depends(get_db)):
     await websocket.accept()
     print(f"ws connected for bed id = {bed_id}")
-    await subscribe_realtime(bed_id, websocket)
+    await subscribe_realtime(bed_id, websocket, db)
 
 
 if __name__ == "__main__":
-    uvicorn.run('main:app', host="0.0.0.0", reload=True)
+    uvicorn.run(app, host="0.0.0.0")

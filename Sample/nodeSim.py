@@ -18,6 +18,7 @@ SERVER_PORT = 8082
 
 DELAY_HR = 10
 DELAY_SPO2 = 10
+DELAY_ECG = 10
 DELAY_BP = 60
 DELAY_PPG = 10
 
@@ -182,6 +183,7 @@ async def startSim():
             tasks.add(asyncio.create_task(startHRProducer(bed, client)))
             tasks.add(asyncio.create_task(startBPProducer(bed, client)))
             tasks.add(asyncio.create_task(startSpO2Producer(bed, client)))
+            tasks.add(asyncio.create_task(startECGProducer(bed, client)))
         await asyncio.gather(*tasks)
 
 
@@ -239,13 +241,27 @@ async def startSpO2Producer(bed: Tuple[str, str], client: Client):
     topic1 = f'{wardNo}/{bedNo}/spO2'
     topic2 = f'{wardNo}/{bedNo}/ppg'
     seed = 98
+    ppgSeed = 0
     while True:
         ppg = []
+        seed = getNextRandomInt(seed, 50, 100, 1)
         for i in range(100):
-            seed = getNextRandomInt(seed, 50, 100, 1)
-            ppg.append(str(seed))
+            ppgSeed = getNextRandomInt(ppgSeed, -1024, 1024, 100)
+            ppg.append(str(ppgSeed))
         await client.publish(topic1, seed, qos=1)
         await client.publish(topic2, ",".join(ppg), qos=1)
+        await asyncio.sleep(DELAY_SPO2)
+
+async def startECGProducer(bed: Tuple[str, str], client: Client):
+    wardNo, bedNo = bed
+    topic2 = f'{wardNo}/{bedNo}/ecg'
+    seed = 98
+    while True:
+        ecg = []
+        for i in range(100):
+            seed = getNextRandomInt(seed, 50, 100, 1)
+            ecg.append(str(seed))
+        await client.publish(topic2, ",".join(ecg), qos=1)
         await asyncio.sleep(DELAY_SPO2)
 
 
