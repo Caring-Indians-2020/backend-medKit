@@ -13,9 +13,10 @@ from sql.database import SessionLocal
 from sql.models import Patient, MedicalDetails, BedDetails
 from .constants import MedicalRecordType
 
+
 class MqttReceiver:
     def __init__(self):
-        self.broker_address = "127.0.0.1"
+        self.broker_address = "mqtt"  # "127.0.0.1"
         self.cached_patient_data = {}
         # <bedNo_wardNo, <ws_id, data>>
         self.cached_PPG_data: Dict[str, Dict[str, List[int]]] = {}
@@ -65,7 +66,7 @@ class MqttReceiver:
                 dataByBedPPg = {}
                 self.cached_PPG_data[cacheKey] = dataByBedPPg
             for wsId in dataByBedPPg:
-                #append to the end of the array
+                # append to the end of the array
                 dataByBedPPg[wsId].extend(map(lambda x: int(x), message))
         elif parameter == MedicalRecordType.ECG.value:
             dataByBedECG = self.cached_ECG_data.get(cacheKey)
@@ -85,22 +86,23 @@ class MqttReceiver:
             # self.cached_patient_data[bed_ward_key] = patient_medical_details
 
     def add_patient_details(self, message: List[str], ward_number, bed_number):
-        #order is as per the node design doc. also change in nodeSim if spec changes
+        # order is as per the node design doc. also change in nodeSim if spec changes
         patient_id = message[0]
 
         if patient_id and patient_id.lower() != 'unknown':
             patient = Patient(patient_id=patient_id,
-                            name=message[1],
-                            sex=message[2],
-                            age=int(message[3]),
-                            systolic_bp_minima=int(message[4]),
-                            systolic_bp_maxima=int(message[5]),
-                            spo2_minima=int(message[6]),
-                            heart_rate_minima=int(message[7]),
-                            heart_rate_maxima=int(message[8]),
-                            )
+                              name=message[1],
+                              sex=message[2],
+                              age=int(message[3]),
+                              systolic_bp_minima=int(message[4]),
+                              systolic_bp_maxima=int(message[5]),
+                              spo2_minima=int(message[6]),
+                              heart_rate_minima=int(message[7]),
+                              heart_rate_maxima=int(message[8]),
+                              )
             crud.save_or_update_patient(self.session, patient)
-        else: patient_id = None
+        else:
+            patient_id = None
 
         bed_details = BedDetails(bed_no=bed_number, ward_no=ward_number, current_patient_id=patient_id,
                                  ip_address=message[9])
@@ -137,7 +139,7 @@ class MqttReceiver:
             patient_details.bpm_current = record_value
             patient_details.bpm_avg = record_value
             patient_details.time = datetime.datetime.now()
-        
+
         # update in db
         details = crud.update_given_patient_details(
             self.session, patient_details)

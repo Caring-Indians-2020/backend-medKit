@@ -1,0 +1,14 @@
+version: "2"
+services:
+    mqtt:
+        image: "eclipse-mosquitto"
+        restart: "always"
+    backend:
+        build: .
+        ports:
+            - "8000:8000"
+        depends_on:
+            - "mqtt"
+        volumes: 
+            - "./db:/db"
+        restart: "always"
