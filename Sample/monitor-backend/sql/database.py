@@ -3,8 +3,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 import os
-
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{os.path.dirname(os.path.realpath(__file__))}/../db/patientInfo.db"
+dbPath = os.getenv('DB_PATH', f"{os.path.dirname(os.path.realpath(__file__))}/../..")
+SQLALCHEMY_DATABASE_URL = f"sqlite:///{dbPath}/patientInfo.db"
 # SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}

@@ -1,6 +1,7 @@
 import asyncio
 import random
 import time
+import os
 import traceback
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any, List, Tuple
@@ -13,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import Response
 
-BROKER_ADDRESS = "127.0.0.1"
+BROKER_ADDRESS = os.getenv("MQTT_BROKER_ADDRESS", '127.0.0.1')
 SERVER_PORT = 8082
 
 DELAY_HR = 10

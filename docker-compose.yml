@@ -9,6 +9,9 @@ services:
             - "8000:8000"
         depends_on:
             - "mqtt"
+        environment: 
+            - DB_PATH=/usr/db
+            - MQTT_BROKER_ADDRESS=mqtt
         volumes: 
-            - "./db:/db"
+            - "./db:/usr/db"
         restart: "always"

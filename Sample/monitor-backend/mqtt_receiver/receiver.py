@@ -16,7 +16,7 @@ from .constants import MedicalRecordType
 
 class MqttReceiver:
     def __init__(self):
-        self.broker_address = "mqtt"  # "127.0.0.1"
+        self.broker_address = os.getenv("MQTT_BROKER_ADDRESS", '127.0.0.1')
         self.cached_patient_data = {}
         # <bedNo_wardNo, <ws_id, data>>
         self.cached_PPG_data: Dict[str, Dict[str, List[int]]] = {}

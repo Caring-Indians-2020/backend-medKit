@@ -1,0 +1,27 @@
+version: "2"
+services:
+    mqtt:
+        image: "eclipse-mosquitto"
+        restart: "always"
+    backend:
+        build: .
+        ports:
+            - "8000:8000"
+        depends_on:
+            - "mqtt"
+        environment: 
+            - DB_PATH=/usr/db
+            - MQTT_BROKER_ADDRESS=mqtt
+        volumes: 
+            - "./db:/usr/db"
+        restart: "always"
+    simulator:
+        build:
+            context: .
+            dockerfile: Dockerfile.simulator
+        restart: "always"
+        depends_on:
+            - "mqtt"
+            - "backend"
+        environment: 
+            - MQTT_BROKER_ADDRESS=mqtt
