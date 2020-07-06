@@ -136,10 +136,12 @@ async def subscribe_realtime(bed_id: int, ws: WebSocket, db: Session):
 
             if wsId not in dataByBedEcg:
                 dataByBedEcg[wsId] = []
-            rtd.ecg = dataByBedPpg[wsId]
+            rtd.ecg = dataByBedEcg[wsId]
             receiver.cached_ECG_data[cacheKey][wsId] = []
 
         try:
+            print("sending data")
+            print(rtd.__dict__)
             await ws_send(rtd.__dict__)
         except:
             print(f"ws disconnected for bed id = {bed_id}")
