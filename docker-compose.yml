@@ -6,7 +6,7 @@ services:
         ports: 
             - "1883:1883"
     backend:
-        build: ~/Documents/backend-medKit
+        build: .
         image: backend
         ports:
             - "8000:8000"

@@ -9,6 +9,7 @@ services:
         build: .
         ports:
             - "8000:8000"
+        image: backend
         depends_on:
             - "mqtt"
         environment: 
