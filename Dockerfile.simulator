@@ -3,7 +3,7 @@ FROM python:3
 # RUN apt-get update
 # RUN apt-get install -y python3
 WORKDIR /usr/src/app
-COPY ./Sample/monitor-backend/requirements.txt ./monitor-backend/requirements.txt
-RUN pip3 install -r monitor-backend/requirements.txt
-COPY ./Sample .
+COPY requirements.txt .
+RUN pip3 install -r requirements.txt
+COPY ./simulator .
 CMD [ "python","nodeSim.py" ]
